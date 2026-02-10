@@ -1,111 +1,134 @@
 
-import { cookies } from 'next/headers';
-import { db } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import Link from 'next/link';
-import { logout } from '@/app/actions';
+import { cookies } from 'next/headers'
+import { db } from '@/lib/db'
+import { verifyToken } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import Navbar from '@/components/Navbar'
+import { Calendar, Clock, CheckCircle, AlertCircle, Trash2, ChevronRight, User } from 'lucide-react'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
-interface PageProps {
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+async function getSession() {
+    const cookieStore = await cookies()
+    const token = cookieStore.get('session')?.value
+    if (!token) return null
+    return await verifyToken(token) as any
 }
 
-export default async function DashboardPage(props: PageProps) {
-    const searchParams = await props.searchParams;
-    const confirmed = searchParams.confirmed === 'true';
-
-    const cookieStore = await cookies();
-    const session = cookieStore.get('session');
-
-    if (!session) redirect('/login');
-
-    const payload = await verifyToken(session.value);
-    if (!payload || typeof payload !== 'object' || !('userId' in payload)) {
-        redirect('/login');
+function StatusBadge({ status }: { status: string }) {
+    if (status === 'confirmed') {
+        return (
+            <div className="flex items-center space-x-2 bg-green-50 text-green-600 px-3 py-1 rounded-full border border-green-100 shadow-sm">
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span className="text-[9px] font-black uppercase tracking-wider">Confirmada</span>
+            </div>
+        )
     }
+    return (
+        <div className="flex items-center space-x-2 bg-yellow-50 text-yellow-600 px-3 py-1 rounded-full border border-yellow-100 shadow-sm">
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span className="text-[9px] font-black uppercase tracking-wider">Pendiente Mail</span>
+        </div>
+    )
+}
 
-    const userId = payload.userId as number;
+export default async function DashboardPage() {
+    const session = await getSession()
 
-    // Fetch appointments
-    // Using direct SQL
+    if (!session) redirect('/login')
+
+    const isAdmin = session.email === 'peluqueriapablo.contact@gmail.com'
+    if (isAdmin) redirect('/admin')
+
+    const userResult = await db.execute({
+        sql: 'SELECT full_name FROM users WHERE id = ?',
+        args: [session.userId]
+    })
+    const user = userResult.rows[0] as any
+
     const result = await db.execute({
-        sql: 'SELECT * FROM appointments WHERE user_id = ? ORDER BY start_time ASC',
-        args: [userId],
-    });
+        sql: 'SELECT * FROM appointments WHERE user_id = ? ORDER BY start_time DESC',
+        args: [session.userId]
+    })
 
-    const appointments = result.rows;
+    const appointments = result.rows.map(row => ({
+        id: row.id,
+        start_time: row.start_time,
+        status: row.status
+    })) as any[]
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 font-sans">
-            <div className="max-w-4xl mx-auto">
-                <header className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Mis Citas</h1>
-                    <div className="flex gap-4 items-center">
-                        <form action={logout}>
-                            <button type="submit" className="text-gray-500 hover:text-black font-medium">
-                                Cerrar Sesión
-                            </button>
-                        </form>
-                        <Link href="/book" className="bg-black text-white px-6 py-2 rounded-full font-medium hover:bg-gray-800 transition-colors">
-                            + Nueva Cita
-                        </Link>
+        <main className="min-h-screen bg-gray-50 pb-32">
+            <Navbar userEmail={session.email} />
+
+            <div className="pt-8 px-4 max-w-2xl mx-auto">
+                <header className="mb-10 animate-slide-up">
+                    <div className="mb-8 p-8 bg-white rounded-[40px] shadow-sm border border-gray-100 flex items-center space-x-6">
+                        <div className="w-16 h-16 gold-gradient rounded-3xl flex items-center justify-center text-white shadow-lg overflow-hidden">
+                            <User className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] block mb-1">Mi Perfil</span>
+                            <h1 className="text-2xl font-black text-gray-900 tracking-tight">{user?.full_name || session.email}</h1>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between px-2">
+                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Próximas Citas</h2>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{appointments.length} total</span>
                     </div>
                 </header>
 
-                {confirmed && (
-                    <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-                        <strong className="font-bold">¡Cita Confirmada! </strong>
-                        <span className="block sm:inline">Tu cita ha sido confirmada y sincronizada.</span>
-                    </div>
-                )}
-
-                <div className="grid gap-6">
+                <div className="space-y-4">
                     {appointments.length === 0 ? (
-                        <div className="bg-white p-12 rounded-2xl shadow-sm text-center">
-                            <p className="text-gray-500 text-lg mb-6">No tienes citas programadas.</p>
-                            <a href="/book" className="inline-block border-2 border-black text-black px-6 py-2 rounded-full font-bold hover:bg-gray-100 transition-colors">
-                                Agendar mi primera cita
-                            </a>
+                        <div className="bg-white p-16 rounded-[40px] text-center border-2 border-dashed border-gray-200 animate-fade-in">
+                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Calendar className="w-8 h-8 text-gray-200" />
+                            </div>
+                            <p className="text-gray-400 font-bold uppercase tracking-widest text-xs leading-relaxed italic">
+                                Aún no tienes citas.<br />Reserva tu primer corte hoy.
+                            </p>
                         </div>
                     ) : (
-                        appointments.map((appt: any) => {
-                            const start = new Date(appt.start_time);
-                            const statusColors = {
-                                confirmed: 'bg-green-100 text-green-700 border-green-200',
-                                pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                                cancelled: 'bg-red-100 text-red-700 border-red-200'
-                            };
-                            const statusLabel = {
-                                confirmed: 'Confirmada',
-                                pending: 'Pendiente',
-                                cancelled: 'Cancelada'
-                            };
-
+                        appointments.map((apt, i) => {
+                            const date = new Date(apt.start_time)
                             return (
-                                <div key={appt.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                    <div>
-                                        <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">
-                                            {format(start, 'MMMM', { locale: es })}
+                                <div
+                                    key={apt.id}
+                                    className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex items-center justify-between gap-4 animate-slide-up hover:border-gold-200 transition-all group"
+                                    style={{ animationDelay: `${i * 100}ms` }}
+                                >
+                                    <div className="flex items-center space-x-6">
+                                        <div className="flex flex-col items-center justify-center w-20 h-20 bg-gray-50 rounded-3xl group-hover:bg-gold-400 group-hover:text-white transition-all shadow-inner">
+                                            <span className="text-[10px] font-black uppercase tracking-wider mb-1">{format(date, 'MMM', { locale: es })}</span>
+                                            <span className="text-2xl font-black leading-none">{format(date, 'd')}</span>
                                         </div>
-                                        <div className="text-3xl font-bold text-gray-900 mb-1">
-                                            {format(start, 'EEEE d', { locale: es })}
-                                        </div>
-                                        <div className="text-lg text-gray-600">
-                                            {format(start, 'HH:mm')} - {format(new Date(appt.end_time), 'HH:mm')}
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <StatusBadge status={apt.status} />
+                                            </div>
+                                            <div className="flex items-center space-x-2 text-gray-900">
+                                                <Clock className="w-4 h-4 text-gold-500" />
+                                                <span className="font-black text-xl italic">{format(date, 'HH:mm')}hs</span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className={`px-4 py-2 rounded-full text-sm font-bold border ${statusColors[appt.status as keyof typeof statusColors] || 'bg-gray-100'}`}>
-                                        {statusLabel[appt.status as keyof typeof statusLabel] || appt.status}
+                                    <div className="flex items-center space-x-2">
+                                        <CancelButton appointmentId={apt.id} />
+                                        <div className="pr-2">
+                                            <ChevronRight className="w-5 h-5 text-gray-200" />
+                                        </div>
                                     </div>
                                 </div>
-                            );
+                            )
                         })
                     )}
                 </div>
             </div>
-        </div>
-    );
+        </main>
+    )
 }
+
+import CancelButton from '@/components/CancelButton'
+

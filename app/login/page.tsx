@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useActionState } from 'react'
@@ -5,6 +6,7 @@ import { useFormStatus } from 'react-dom'
 import { login } from '@/app/actions'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Mail, Lock, LogIn, ChevronLeft } from 'lucide-react'
 
 function SubmitButton() {
     const { pending } = useFormStatus()
@@ -12,9 +14,9 @@ function SubmitButton() {
         <button
             type="submit"
             disabled={pending}
-            className="w-full bg-black text-white p-3 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            className="w-full gold-gradient text-white p-5 rounded-[22px] font-black uppercase tracking-[0.3em] hover:scale-[1.02] transition-all disabled:opacity-50 shadow-xl text-xs"
         >
-            {pending ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            {pending ? 'Cargando...' : 'Iniciar Sesión'}
         </button>
     )
 }
@@ -29,74 +31,93 @@ export default function LoginPage() {
     const [state, formAction] = useActionState(login, initialState)
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-            <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-sm">
-                <div className="text-center">
-                    <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-                        Bienvenido de nuevo
-                    </h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Ingresa a tu cuenta para gestionar tus citas
-                    </p>
-                </div>
+        <main className="min-h-screen bg-white flex flex-col justify-center relative overflow-hidden px-4">
+            <div className="absolute top-0 right-0 w-full h-full bg-gray-50/50 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gold-400/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2" />
 
-                {verified && (
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-                        <strong className="font-bold">¡Email verificado! </strong>
-                        <span className="block sm:inline">Ya puedes iniciar sesión.</span>
-                    </div>
-                )}
 
-                <form action={formAction} className="mt-8 space-y-6">
-                    <div className="space-y-4 rounded-md shadow-sm">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                Email
-                            </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                                placeholder="tu@email.com"
-                            />
+
+            <div className="w-full max-w-lg mx-auto z-10 animate-fade-in">
+                <div className="bg-white p-12 md:p-20 rounded-[48px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 relative">
+                    <div className="text-center mb-14">
+                        <div className="w-20 h-20 gold-gradient rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-3 group-hover:rotate-0 transition-transform">
+                            <LogIn className="w-10 h-10 text-white" />
                         </div>
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                Contraseña
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                required
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                                placeholder="********"
-                            />
-                        </div>
+                        <h2 className="text-5xl font-black font-playfair uppercase tracking-tight text-gray-900 mb-3 leading-none">
+                            Bienvenido
+                        </h2>
+                        <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">
+                            Acceso Clientes & Staff
+                        </p>
                     </div>
 
-                    {state?.error && (
-                        <div className="text-red-500 text-sm text-center">
-                            {state.error}
+                    {verified && (
+                        <div className="mb-10 p-5 bg-green-50 border border-green-100 text-green-700 rounded-2xl text-center font-black uppercase tracking-widest text-[10px] animate-slide-up">
+                            ¡Email verificado! Ya puedes entrar.
                         </div>
                     )}
 
-                    <div>
-                        <SubmitButton />
-                    </div>
+                    <form action={formAction} className="space-y-8">
+                        <div className="space-y-6">
+                            <div className="relative group">
+                                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-3 ml-2">Tu Email</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-gold-500 transition-colors" />
+                                    <input
+                                        id="email"
+                                        name="email"
+                                        type="email"
+                                        required
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-[22px] px-14 py-5 text-gray-900 focus:outline-none focus:bg-white focus:border-gold-400/50 transition-all placeholder:text-gray-300 font-bold shadow-inner"
+                                        placeholder="ejemplo@correo.com"
+                                    />
+                                </div>
+                            </div>
 
-                    <div className="text-center text-sm">
-                        <span className="text-gray-500">¿No tienes cuenta? </span>
-                        <Link href="/register" className="font-medium text-black hover:underline">
-                            Regístrate aquí
-                        </Link>
-                    </div>
-                </form>
+                            <div className="relative group">
+                                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-3 ml-2">Contraseña</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-gold-500 transition-colors" />
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        required
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-[22px] px-14 py-5 text-gray-900 focus:outline-none focus:bg-white focus:border-gold-400/50 transition-all placeholder:text-gray-300 font-bold shadow-inner"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <div className="text-right pr-2">
+                                    <Link href="/forgot-password" title="¿Olvidaste tu contraseña?" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gold-600 transition-colors">
+                                        ¿Olvidaste tu contraseña?
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+
+                        {state?.error && (
+                            <div className="p-5 bg-red-50 border border-red-100 text-red-500 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest animate-shake">
+                                {state.error}
+                            </div>
+                        )}
+
+                        <div className="pt-6">
+                            <SubmitButton />
+                        </div>
+
+                        <div className="text-center pt-8">
+                            <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest block mb-4">¿Aún no eres miembro?</span>
+                            <Link href="/register" className="text-gray-900 hover:text-gold-600 transition-colors font-black uppercase tracking-[0.3em] text-[11px] underline underline-offset-8 decoration-gold-400 decoration-2">
+                                Regístrate Ahora
+                            </Link>
+                        </div>
+                    </form>
+                </div>
+
+                <p className="text-center text-gray-300 text-[9px] mt-12 uppercase tracking-[0.5em] font-black">
+                    Pablo BarberShop © 2026 - Confort & Estilo
+                </p>
             </div>
-        </div>
+        </main>
     )
 }
