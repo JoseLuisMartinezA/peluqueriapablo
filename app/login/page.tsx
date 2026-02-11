@@ -3,7 +3,7 @@
 
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
-import { login } from '@/app/actions'
+import { login, type ActionState } from '@/app/actions'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, LogIn, ChevronLeft } from 'lucide-react'
@@ -21,7 +21,7 @@ function SubmitButton() {
     )
 }
 
-const initialState = {
+const initialState: ActionState = {
     error: '',
 }
 

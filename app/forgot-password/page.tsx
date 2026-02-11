@@ -3,7 +3,7 @@
 
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
-import { requestPasswordReset } from '@/app/actions'
+import { requestPasswordReset, type ActionState } from '@/app/actions'
 import Link from 'next/link'
 import { Mail, Key, CheckCircle } from 'lucide-react'
 
@@ -20,7 +20,7 @@ function SubmitButton() {
     )
 }
 
-const initialState = {
+const initialState: ActionState = {
     error: '',
     success: false,
     message: ''

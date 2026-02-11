@@ -11,13 +11,19 @@ import { parse, setHours, setMinutes } from 'date-fns'
 import { deleteEvent } from '@/lib/google'
 import { revalidatePath } from 'next/cache'
 
-export async function register(prevState: any, formData: FormData) {
+export type ActionState = {
+    success?: boolean;
+    error?: string;
+    message?: string;
+};
+
+export async function register(prevState: ActionState, formData: FormData): Promise<ActionState> {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     const fullName = formData.get('fullName') as string
 
     if (!email || !password || !fullName) {
-        return { error: 'Todos los campos son obligatorios' }
+        return { error: 'Todos los campos son obligatorios', success: false, message: '' }
     }
 
     // Check existing user
@@ -29,7 +35,7 @@ export async function register(prevState: any, formData: FormData) {
     if (result.rows.length > 0) {
         const existingUser = result.rows[0];
         if (existingUser.email_verified) {
-            return { error: 'El usuario ya existe' };
+            return { error: 'El usuario ya existe', success: false, message: '' };
         }
         // If exists but not verified, delete it so we can re-register clean
         await db.execute({
@@ -65,17 +71,17 @@ export async function register(prevState: any, formData: FormData) {
                 ? (emailResult.error as any).message
                 : 'Error al enviar email de verificación';
 
-            return { error: errorMessage };
+            return { error: errorMessage, success: false, message: '' };
         }
 
-        return { success: true, message: 'Revisa tu email (incluso SPAM) para verificar la cuenta.' }
+        return { success: true, message: 'Revisa tu email (incluso SPAM) para verificar la cuenta.', error: '' }
     } catch (error) {
         console.error('Registration error:', error)
-        return { error: 'Error al crear la cuenta' }
+        return { error: 'Error al crear la cuenta', success: false, message: '' }
     }
 }
 
-export async function login(prevState: any, formData: FormData) {
+export async function login(prevState: ActionState, formData: FormData): Promise<ActionState> {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
 
@@ -87,11 +93,11 @@ export async function login(prevState: any, formData: FormData) {
     const user = result.rows[0]
 
     if (!user || !await comparePassword(password, user.password_hash as string)) {
-        return { error: 'Invalid credentials' }
+        return { error: 'Credenciales inválidas', success: false }
     }
 
     if (!user.email_verified) {
-        return { error: 'Please verify your email first' }
+        return { error: 'Por favor, verifica tu email primero', success: false }
     }
 
     // Create session
@@ -212,9 +218,9 @@ export async function cancelAppointment(appointmentId: number) {
     }
 }
 
-export async function requestPasswordReset(prevState: any, formData: FormData) {
+export async function requestPasswordReset(prevState: ActionState, formData: FormData): Promise<ActionState> {
     const email = formData.get('email') as string;
-    if (!email) return { error: 'El email es obligatorio' };
+    if (!email) return { error: 'El email es obligatorio', success: false, message: '' };
 
     const result = await db.execute({
         sql: 'SELECT id FROM users WHERE email = ?',
@@ -222,7 +228,7 @@ export async function requestPasswordReset(prevState: any, formData: FormData) {
     });
 
     if (result.rows.length === 0) {
-        return { success: true, message: 'Si el correo existe, recibirás un link de recuperación.' };
+        return { success: true, message: 'Si el correo existe, recibirás un link de recuperación.', error: '' };
     }
 
     const token = generateVerificationToken();
@@ -235,14 +241,14 @@ export async function requestPasswordReset(prevState: any, formData: FormData) {
 
     await sendPasswordResetEmail(email, token);
 
-    return { success: true, message: 'Si el correo existe, recibirás un link de recuperación.' };
+    return { success: true, message: 'Si el correo existe, recibirás un link de recuperación.', error: '' };
 }
 
-export async function resetPassword(prevState: any, formData: FormData) {
+export async function resetPassword(prevState: ActionState, formData: FormData): Promise<ActionState> {
     const token = formData.get('token') as string;
     const password = formData.get('password') as string;
 
-    if (!token || !password) return { error: 'Faltan datos' };
+    if (!token || !password) return { error: 'Faltan datos', success: false };
 
     const result = await db.execute({
         sql: 'SELECT id, reset_expires FROM users WHERE reset_token = ?',
@@ -250,14 +256,14 @@ export async function resetPassword(prevState: any, formData: FormData) {
     });
 
     if (result.rows.length === 0) {
-        return { error: 'Token inválido o expirado' };
+        return { error: 'Token inválido o expirado', success: false };
     }
 
     const user = result.rows[0];
     const expires = new Date(user.reset_expires as string);
 
     if (expires < new Date()) {
-        return { error: 'El link ha expirado' };
+        return { error: 'El link ha expirado', success: false };
     }
 
     const hashedPassword = await hashPassword(password);
@@ -267,7 +273,7 @@ export async function resetPassword(prevState: any, formData: FormData) {
         args: [hashedPassword, user.id]
     });
 
-    return { success: true };
+    return { success: true, error: '' };
 }
 
 import { sendPasswordResetEmail } from '@/lib/email'

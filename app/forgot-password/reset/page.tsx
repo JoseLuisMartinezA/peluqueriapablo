@@ -3,7 +3,7 @@
 
 import { useActionState, Suspense } from 'react'
 import { useFormStatus } from 'react-dom'
-import { resetPassword } from '@/app/actions'
+import { resetPassword, type ActionState } from '@/app/actions'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Lock, Save, CheckCircle } from 'lucide-react'
@@ -21,7 +21,7 @@ function SubmitButton() {
     )
 }
 
-const initialState = {
+const initialState: ActionState = {
     error: '',
     success: false
 }
