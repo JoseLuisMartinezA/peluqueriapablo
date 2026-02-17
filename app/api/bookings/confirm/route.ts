@@ -33,13 +33,15 @@ export async function GET(request: Request) {
     const staffName = (appointment.staff_name || 'Sin asignar') as string;
 
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
+
     if (appointment.status === 'confirmed') {
-        return redirect('/?already_confirmed=true');
+        return redirect(`${appUrl}/?already_confirmed=true`);
     }
 
     // Create Google Calendar Event
     try {
-
+        // ... (existing code for creating event)
         const event = await createEvent({
             summary: `Cita: ${appointment.customer_name || 'Nuevo Cliente'} - ${staffName}`,
             description: `Cita reservada desde la web.\nCliente: ${appointment.customer_name}\nEmail: ${email}\nBarbero: ${staffName}\nServicios: ${appointment.services}\nNotas: ${appointment.notes}`,
@@ -64,5 +66,5 @@ export async function GET(request: Request) {
         return new Response('Failed to confirm booking with provider', { status: 500 });
     }
 
-    return redirect('/?confirmed=true');
+    return redirect(`${appUrl}/?confirmed=true`);
 }
