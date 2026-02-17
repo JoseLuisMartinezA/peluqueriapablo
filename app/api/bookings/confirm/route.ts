@@ -11,12 +11,14 @@ export async function GET(request: Request) {
         return new Response('Invalid token', { status: 400 });
     }
 
-    // Find appointment
+
+
+    // Find appointment with staff info
     const result = await db.execute({
         sql: `
-      SELECT a.*, u.email 
-      FROM appointments a 
-      JOIN users u ON a.user_id = u.id 
+      SELECT a.*, s.name as staff_name
+      FROM appointments a
+      LEFT JOIN staff s ON a.staff_id = s.id
       WHERE a.confirmation_token = ?
     `,
         args: [token],
@@ -27,18 +29,22 @@ export async function GET(request: Request) {
     }
 
     const appointment = result.rows[0];
+    const email = (appointment.customer_email || 'Cliente') as string;
+    const staffName = (appointment.staff_name || 'Sin asignar') as string;
+
 
     if (appointment.status === 'confirmed') {
-        return redirect('/dashboard?already_confirmed=true');
+        return redirect('/?already_confirmed=true');
     }
 
     // Create Google Calendar Event
     try {
+
         const event = await createEvent({
-            summary: `Cita con ${appointment.email}`,
-            description: `Cita reservada desde la web. Cliente: ${appointment.email}`,
+            summary: `Cita: ${appointment.customer_name || 'Nuevo Cliente'} - ${staffName}`,
+            description: `Cita reservada desde la web.\nCliente: ${appointment.customer_name}\nEmail: ${email}\nBarbero: ${staffName}\nServicios: ${appointment.services}\nNotas: ${appointment.notes}`,
             start: {
-                dateTime: appointment.start_time, // stored as ISO string?
+                dateTime: appointment.start_time,
                 timeZone: 'Europe/Madrid',
             },
             end: {
@@ -58,5 +64,5 @@ export async function GET(request: Request) {
         return new Response('Failed to confirm booking with provider', { status: 500 });
     }
 
-    return redirect('/dashboard?confirmed=true');
+    return redirect('/?confirmed=true');
 }

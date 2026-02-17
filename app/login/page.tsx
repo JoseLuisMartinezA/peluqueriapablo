@@ -6,7 +6,7 @@ import { useFormStatus } from 'react-dom'
 import { login, type ActionState } from '@/app/actions'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, LogIn, ChevronLeft } from 'lucide-react'
+import { User, Lock, LogIn, ChevronLeft } from 'lucide-react'
 
 function SubmitButton() {
     const { pending } = useFormStatus()
@@ -56,16 +56,16 @@ function LoginForm() {
             <form action={formAction} className="space-y-8">
                 <div className="space-y-6">
                     <div className="relative group">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-3 ml-2">Tu Email</label>
+                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-3 ml-2">Usuario</label>
                         <div className="relative">
-                            <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-gold-500 transition-colors" />
+                            <User className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-gold-500 transition-colors" />
                             <input
                                 id="email"
                                 name="email"
-                                type="email"
+                                type="text"
                                 required
                                 className="w-full bg-gray-50 border border-gray-100 rounded-[22px] px-14 py-5 text-gray-900 focus:outline-none focus:bg-white focus:border-gold-400/50 transition-all placeholder:text-gray-300 font-bold shadow-inner"
-                                placeholder="ejemplo@correo.com"
+                                placeholder="barbershop"
                             />
                         </div>
                     </div>
@@ -83,11 +83,6 @@ function LoginForm() {
                                 placeholder="••••••••"
                             />
                         </div>
-                        <div className="text-right pr-2">
-                            <Link href="/forgot-password" title="¿Olvidaste tu contraseña?" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gold-600 transition-colors">
-                                ¿Olvidaste tu contraseña?
-                            </Link>
-                        </div>
                     </div>
                 </div>
 
@@ -99,13 +94,6 @@ function LoginForm() {
 
                 <div className="pt-6">
                     <SubmitButton />
-                </div>
-
-                <div className="text-center pt-8">
-                    <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest block mb-4">¿Aún no eres miembro?</span>
-                    <Link href="/register" className="text-gray-900 hover:text-gold-600 transition-colors font-black uppercase tracking-[0.3em] text-[11px] underline underline-offset-8 decoration-gold-400 decoration-2">
-                        Regístrate Ahora
-                    </Link>
                 </div>
             </form>
         </div>
@@ -123,7 +111,7 @@ export default function LoginPage() {
                     <LoginForm />
 
                     <p className="text-center text-gray-300 text-[9px] mt-12 uppercase tracking-[0.5em] font-black">
-                        Pablo BarberShop © 2026 - Confort & Estilo
+                        Barbershop © 2026 - Confort & Estilo
                     </p>
                 </div>
             </main>

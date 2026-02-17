@@ -96,23 +96,23 @@ export async function login(prevState: ActionState, formData: FormData): Promise
         return { error: 'Credenciales inválidas', success: false, message: null }
     }
 
-    if (!user.email_verified) {
+    // Allow admin to bypass email verification
+    if (!user.email_verified && user.role !== 'admin') {
         return { error: 'Por favor, verifica tu email primero', success: false, message: null }
     }
 
-    // Create session
-    const token = await signToken({ userId: user.id, email: user.email })
+    const token = await signToken({ userId: user.id, email: user.email, role: user.role })
 
     // Set cookie
     const cookieStore = await cookies()
     cookieStore.set('session', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        path: '/'
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7 // 1 week
     })
 
-    const isAdmin = user.email === 'peluqueriapablo.contact@gmail.com'
+    const isAdmin = user.role === 'admin'
     if (isAdmin) {
         redirect('/admin')
     } else {
@@ -126,45 +126,69 @@ export async function logout() {
     redirect('/login')
 }
 
-export async function bookAppointment(formData: FormData) {
-    const cookieStore = await cookies();
-    const session = cookieStore.get('session');
-    if (!session) redirect('/login');
 
-    const payload = await verifyToken(session.value);
-    if (!payload || typeof payload !== 'object' || !('userId' in payload)) {
-        redirect('/login');
-    }
-
-    const userId = payload.userId as number;
-    const email = payload.email as string;
-
+export async function bookAppointment(formData: FormData): Promise<ActionState> {
+    const customerName = formData.get('customer_name') as string;
+    const customerEmail = formData.get('customer_email') as string;
     const dateStr = formData.get('date') as string;
     const timeStr = formData.get('time') as string;
+    const staffIdRaw = formData.get('staff_id') as string;
+    const services = formData.get('services') as string;
+    const notes = formData.get('notes') as string;
 
-    if (!dateStr || !timeStr) {
-        throw new Error('Missing data');
+    if (!customerEmail || !customerName || !dateStr || !timeStr) {
+        return { success: false, error: 'Por favor, rellena todos los datos obligatorios.', message: null };
     }
 
     const date = parse(dateStr, 'yyyy-MM-dd', new Date());
     const [hours, minutes] = timeStr.split(':').map(Number);
     const startTime = setMinutes(setHours(date, hours), minutes);
-    const endTime = setMinutes(setHours(date, hours), minutes + 30);
+    const endTime = setMinutes(setHours(date, hours), minutes + 30); // Default 30 min, should probably use service duration
 
-    const confirmationToken = generateVerificationToken();
+    let staffId = staffIdRaw ? parseInt(staffIdRaw) : null;
 
     try {
-        await db.execute({
-            sql: 'INSERT INTO appointments (user_id, start_time, end_time, status, confirmation_token) VALUES (?, ?, ?, ?, ?)',
-            args: [userId, startTime.toISOString(), endTime.toISOString(), 'pending', confirmationToken]
+        // Handle "Cualquiera" (Any) assignment
+        // First, check if the selected staff is "Cualquiera"
+        const staffResult = await db.execute({
+            sql: 'SELECT id, name FROM staff WHERE id = ?',
+            args: [staffId]
         });
 
-        await sendBookingConfirmationEmail(email, { start_time: startTime }, confirmationToken);
+        if (staffResult.rows[0]?.name === 'Cualquiera') {
+            // Find a real staff member who is free at this time
+            const realStaffResult = await db.execute('SELECT id FROM staff WHERE name != "Cualquiera"');
+            const realStaffIds = realStaffResult.rows.map(r => r.id as number);
 
-        redirect('/book/success');
+            for (const sId of realStaffIds) {
+                const conflict = await db.execute({
+                    sql: 'SELECT id FROM appointments WHERE staff_id = ? AND start_time = ? AND status != "cancelled"',
+                    args: [sId, startTime.toISOString()]
+                });
+                if (conflict.rows.length === 0) {
+                    staffId = sId;
+                    break;
+                }
+            }
+        }
+
+        const confirmationToken = generateVerificationToken();
+
+        await db.execute({
+            sql: 'INSERT INTO appointments (customer_name, customer_email, staff_id, start_time, end_time, status, services, notes, confirmation_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            args: [customerName, customerEmail, staffId, startTime.toISOString(), endTime.toISOString(), 'pending', services, notes, confirmationToken]
+        });
+
+        const emailResult = await sendBookingConfirmationEmail(customerEmail, { start_time: startTime }, confirmationToken);
+
+        if (!emailResult.success) {
+            console.error('Email send failure:', emailResult.error);
+        }
+
+        return { success: true, message: '¡Casi listo! Por favor, revisa tu correo para confirmar la cita.', error: null };
     } catch (error) {
         console.error('Booking error:', error);
-        throw error;
+        return { success: false, error: 'Error al procesar la reserva. Inténtalo de nuevo.', message: null };
     }
 }
 
@@ -278,3 +302,125 @@ export async function resetPassword(prevState: ActionState, formData: FormData):
 
 import { sendPasswordResetEmail } from '@/lib/email'
 
+
+export async function createService(formData: FormData) {
+    const name = formData.get('name') as string;
+    const price = formData.get('price') as string;
+    const duration = formData.get('duration') as string;
+    const category = formData.get('category') as string;
+    const description = formData.get('description') as string;
+    const popular = formData.get('popular') === 'true' ? 1 : 0;
+
+    await db.execute({
+        sql: 'INSERT INTO services (name, price, duration, category, description, popular) VALUES (?, ?, ?, ?, ?, ?)',
+        args: [name, price, duration, category, description, popular]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function updateService(id: number, formData: FormData) {
+    const name = formData.get('name') as string;
+    const price = formData.get('price') as string;
+    const duration = formData.get('duration') as string;
+    const category = formData.get('category') as string;
+    const description = formData.get('description') as string;
+    const popular = formData.get('popular') === 'true' ? 1 : 0;
+
+    await db.execute({
+        sql: 'UPDATE services SET name = ?, price = ?, duration = ?, category = ?, description = ?, popular = ? WHERE id = ?',
+        args: [name, price, duration, category, description, popular, id]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function deleteService(id: number) {
+    await db.execute({
+        sql: 'DELETE FROM services WHERE id = ?',
+        args: [id]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function createStaff(formData: FormData) {
+    const name = formData.get('name') as string;
+    const avatar_url = formData.get('avatar_url') as string;
+
+    await db.execute({
+        sql: 'INSERT INTO staff (name, avatar_url) VALUES (?, ?)',
+        args: [name, avatar_url]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function deleteStaff(id: number) {
+    await db.execute({
+        sql: 'DELETE FROM staff WHERE id = ?',
+        args: [id]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function updateLocation(id: number, formData: FormData) {
+    const name = formData.get('name') as string;
+    const address = formData.get('address') as string;
+    const phone = formData.get('phone') as string;
+    const schedule = formData.get('schedule') as string;
+
+
+    await db.execute({
+        sql: 'UPDATE locations SET name = ?, address = ?, phone = ?, schedule = ? WHERE id = ?',
+        args: [name, address, phone, schedule, id]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function updateSettings(formData: FormData) {
+    const entries = Array.from(formData.entries());
+    for (const [key, value] of entries) {
+        if (typeof value === 'string') {
+
+            await db.execute({
+                sql: 'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+                args: [key, value]
+            });
+        }
+    }
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function addPortfolioImage(formData: FormData) {
+    const image_url = formData.get('image_url') as string;
+    const tag = formData.get('tag') as string;
+
+    await db.execute({
+        sql: 'INSERT INTO portfolio_images (image_url, tag) VALUES (?, ?)',
+        args: [image_url, tag]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function deletePortfolioImage(id: number) {
+    await db.execute({
+        sql: 'DELETE FROM portfolio_images WHERE id = ?',
+        args: [id]
+    });
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true };
+}

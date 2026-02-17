@@ -5,9 +5,10 @@ import { verifyToken } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import AdminCalendar from '@/components/AdminCalendar'
-import { ShieldCheck, Activity, Users } from 'lucide-react'
+import { ShieldCheck, Activity, Users, Settings, Briefcase, MapPin, Scissors } from 'lucide-react'
 
-const ADMIN_EMAILS = ['peluqueriapablo.contact@gmail.com']
+import AdminCMS from '../../components/admin/AdminCMS'
+import AdminBookings from '../../components/admin/AdminBookings'
 
 async function getSession() {
     const cookieStore = await cookies()
@@ -16,12 +17,22 @@ async function getSession() {
     return await verifyToken(token) as any
 }
 
-export default async function AdminPage() {
+
+export default async function AdminPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ tab?: string }>
+}) {
+    const sp = await searchParams
     const session = await getSession()
+    const currentTab = sp.tab || 'bookings'
 
     if (!session) redirect('/login')
 
-    if (!ADMIN_EMAILS.includes(session.email as string)) {
+    // Check role OR specific email (legacy)
+    const isAdmin = session.role === 'admin' || session.email === 'peluqueriapablo.contact@gmail.com' || session.email === 'barbershop'
+
+    if (!isAdmin) {
         return (
             <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <div className="text-center bg-white p-16 rounded-[40px] shadow-sm max-w-md border border-gray-100">
@@ -35,59 +46,103 @@ export default async function AdminPage() {
         )
     }
 
-    const result = await db.execute(`
-        SELECT a.id, a.start_time, a.status, u.full_name as user_name 
+    // Fetch All Data
+    const appointmentsResult = await db.execute(`
+        SELECT 
+            a.id, 
+            a.customer_name,
+            a.customer_email,
+            a.start_time, 
+            a.end_time,
+            a.status, 
+            a.services,
+            a.notes,
+            a.staff_id,
+            u.full_name as user_name,
+            s.name as staff_name
         FROM appointments a 
-        JOIN users u ON a.user_id = u.id 
-        ORDER BY start_time ASC
+        LEFT JOIN users u ON a.user_id = u.id 
+        LEFT JOIN staff s ON a.staff_id = s.id
+        ORDER BY a.start_time DESC
     `)
 
-    const appointments = result.rows.map(row => ({
-        id: row.id,
-        start_time: row.start_time,
-        status: row.status,
-        user_name: row.user_name
-    })) as any[]
+    const servicesResult = await db.execute(`SELECT * FROM services ORDER BY category ASC`)
+    const staffResult = await db.execute(`SELECT * FROM staff ORDER BY name ASC`)
+    const locationsResult = await db.execute(`SELECT * FROM locations ORDER BY name ASC`)
+
+
+
+    const settingsResult = await db.execute(`SELECT * FROM settings`)
+    const portfolioResult = await db.execute(`SELECT * FROM portfolio_images`)
+
+    const appointments = JSON.parse(JSON.stringify(appointmentsResult.rows))
+    const services = JSON.parse(JSON.stringify(servicesResult.rows))
+    const staff = JSON.parse(JSON.stringify(staffResult.rows))
+    const locations = JSON.parse(JSON.stringify(locationsResult.rows))
+    const settings = JSON.parse(JSON.stringify(settingsResult.rows))
+    const portfolio = JSON.parse(JSON.stringify(portfolioResult.rows))
+
+    const tabs = [
+        { id: 'bookings', label: 'Reservas', icon: Scissors },
+        { id: 'services', label: 'Servicios', icon: Briefcase },
+        { id: 'staff', label: 'Equipo', icon: Users },
+        { id: 'content', label: 'Contenido', icon: MapPin },
+    ]
 
     return (
         <main className="min-h-screen bg-gray-50 pb-32">
             <Navbar userEmail={session.email} />
 
-            <div className="pt-8 pb-12 px-4 max-w-7xl mx-auto">
+
+            <div className="pt-28 pb-12 px-4 max-w-7xl mx-auto">
                 <header className="mb-12 animate-slide-up flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div>
                         <div className="flex items-center space-x-3 text-gold-600 mb-4 bg-white w-fit px-6 py-2 rounded-full shadow-sm border border-gold-100">
                             <ShieldCheck className="w-4 h-4" />
                             <span className="text-[9px] font-black uppercase tracking-[0.4em]">ADMIN CONTROL</span>
                         </div>
-                        <h1 className="text-5xl font-black font-playfair uppercase tracking-tighter text-gray-900 leading-none">Reservas</h1>
-                        <p className="text-gray-400 text-sm mt-4 font-black uppercase tracking-widest flex items-center gap-3">
-                            <Activity className="w-3 h-3 text-green-500 animate-pulse" />
-                            Sincronizado en tiempo real
-                        </p>
+                        <h1 className="text-5xl font-black italic tracking-tighter text-gray-900 leading-none">PANEL DE CONTROL</h1>
                     </div>
 
-
+                    <nav className="flex bg-white p-2 rounded-3xl shadow-sm border border-gray-100 overflow-x-auto no-scrollbar">
+                        {tabs.map((tab) => (
+                            <a
+                                key={tab.id}
+                                href={`/admin?tab=${tab.id}`}
+                                className={`flex items-center space-x-3 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTab === tab.id
+                                    ? 'bg-black text-white shadow-xl scale-105'
+                                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <tab.icon className="w-4 h-4" />
+                                <span>{tab.label}</span>
+                            </a>
+                        ))}
+                    </nav>
                 </header>
 
                 <div className="animate-fade-in [animation-delay:200ms] space-y-8">
-                    <AdminCalendar initialAppointments={appointments} />
+                    {currentTab === 'bookings' && (
+                        <div className="space-y-12">
+                            <AdminCalendar initialAppointments={appointments} />
 
-                    <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 flex items-center justify-between animate-slide-up">
-                        <div className="flex items-center space-x-6">
-                            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center">
-                                <Users className="w-6 h-6 text-gray-900" />
-                            </div>
-                            <div>
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 block mb-1">Resumen de Actividad</span>
-                                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Reservas Totales Actuales</h3>
+                            <div className="bg-white p-10 rounded-[3rem] shadow-xl shadow-black/5 border border-gray-100">
+                                <AdminBookings appointments={appointments} staff={staff} />
                             </div>
                         </div>
-                        <div className="text-right">
-                            <span className="text-5xl font-black text-gold-600 tracking-tighter">{appointments.length}</span>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mt-2">Reservas</span>
-                        </div>
-                    </div>
+                    )}
+
+                    {currentTab !== 'bookings' && (
+
+                        <AdminCMS
+                            tab={currentTab}
+                            services={services}
+                            staff={staff}
+                            locations={locations}
+                            settings={settings}
+                            portfolio={portfolio}
+                        />
+                    )}
                 </div>
             </div>
         </main>

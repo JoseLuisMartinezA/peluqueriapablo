@@ -195,7 +195,19 @@ export default function AdminCalendar({ initialAppointments }: { initialAppointm
                                                 <div className="w-1 h-1 bg-gold-500 rounded-full" />
                                                 <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">Cliente</span>
                                             </div>
-                                            <p className="font-black text-lg text-gray-900 font-playfair truncate">{apt.user_name}</p>
+                                            <p className="font-black text-lg text-gray-900 truncate">{apt.user_name}</p>
+                                            {apt.services && (
+                                                <p className="text-[10px] font-bold text-gold-600 uppercase tracking-widest mt-1">
+                                                    {(() => {
+                                                        try {
+                                                            const svcs = JSON.parse(apt.services);
+                                                            return Array.isArray(svcs) ? svcs.join(' + ') : svcs;
+                                                        } catch {
+                                                            return apt.services;
+                                                        }
+                                                    })()}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 

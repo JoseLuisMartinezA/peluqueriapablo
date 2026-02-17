@@ -20,7 +20,7 @@ export const viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Pablo BarberShop | Estilo & Tradición",
+  title: "Barbershop | Estilo & Tradición",
   description: "Corte de pelo y barba con estilo clásico y técnicas modernas.",
 };
 
