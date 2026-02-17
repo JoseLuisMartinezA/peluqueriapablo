@@ -155,20 +155,37 @@ export async function bookAppointment(formData: FormData): Promise<ActionState> 
             args: [staffId]
         });
 
-        if (staffResult.rows[0]?.name === 'Cualquiera') {
+        const isAnyStaff = !staffId || staffResult.rows[0]?.name === 'Cualquiera';
+
+        if (isAnyStaff) {
             // Find a real staff member who is free at this time
             const realStaffResult = await db.execute('SELECT id FROM staff WHERE name != "Cualquiera"');
             const realStaffIds = realStaffResult.rows.map(r => r.id as number);
 
+            let assignedStaffId = null;
             for (const sId of realStaffIds) {
                 const conflict = await db.execute({
                     sql: 'SELECT id FROM appointments WHERE staff_id = ? AND start_time = ? AND status != "cancelled"',
                     args: [sId, startTime.toISOString()]
                 });
                 if (conflict.rows.length === 0) {
-                    staffId = sId;
+                    assignedStaffId = sId;
                     break;
                 }
+            }
+
+            if (!assignedStaffId) {
+                return { success: false, error: 'No hay barberos disponibles a esta hora.', message: null };
+            }
+            staffId = assignedStaffId;
+        } else {
+            // Check if specifically selected staff is free
+            const conflict = await db.execute({
+                sql: 'SELECT id FROM appointments WHERE staff_id = ? AND start_time = ? AND status != "cancelled"',
+                args: [staffId, startTime.toISOString()]
+            });
+            if (conflict.rows.length > 0) {
+                return { success: false, error: 'Este profesional ya tiene una cita reservada a esta hora.', message: null };
             }
         }
 

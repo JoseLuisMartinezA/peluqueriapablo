@@ -122,7 +122,7 @@ export default async function AdminPage({
                 <div className="space-y-10">
                     {currentTab === 'bookings' && (
                         <div className="grid grid-cols-1 gap-10">
-                            <AdminCalendar initialAppointments={appointments} />
+                            <AdminCalendar initialAppointments={appointments} staff={staff} />
 
                             <div className="border-t border-gray-200 pt-10">
                                 <AdminBookings appointments={appointments} staff={staff} />

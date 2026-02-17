@@ -59,6 +59,8 @@ export default function BookingModal({ isOpen, onClose, service, servicesPool, s
     const [bookingMessage, setBookingMessage] = useState<string | null>(null)
     const [bookingError, setBookingError] = useState<string | null>(null)
     const [isBookingLoading, setIsBookingLoading] = useState(false)
+    const [availableSlots, setAvailableSlots] = useState<string[]>([])
+    const [isSlotsLoading, setIsSlotsLoading] = useState(false)
 
     const timeScrollRef = useRef<HTMLDivElement>(null)
     const dateScrollRef = useRef<HTMLDivElement>(null)
@@ -70,6 +72,29 @@ export default function BookingModal({ isOpen, onClose, service, servicesPool, s
             setSelectedServices([initialService])
         }
     }, [service, isOpen])
+
+    useEffect(() => {
+        const fetchSlots = async () => {
+            setIsSlotsLoading(true)
+            try {
+                const dateStr = format(selectedDate, 'yyyy-MM-dd')
+                const staffId = selectedStaff.id
+                const res = await fetch(`/api/availability?date=${dateStr}&staffId=${staffId}`)
+                const data = await res.json()
+                if (data.slots) {
+                    setAvailableSlots(data.slots)
+                }
+            } catch (err) {
+                console.error('Error fetching slots:', err)
+            } finally {
+                setIsSlotsLoading(false)
+            }
+        }
+
+        if (isOpen) {
+            fetchSlots()
+        }
+    }, [selectedDate, selectedStaff, isOpen])
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -461,20 +486,28 @@ export default function BookingModal({ isOpen, onClose, service, servicesPool, s
                                     {...timeDragProps}
                                     className="flex overflow-x-auto no-scrollbar space-x-3 py-16 -my-16 flex-grow cursor-grab active:cursor-grabbing select-none"
                                 >
-                                    {allTimeSlots.map(({ time, type }) => (
-                                        <button
-                                            key={time}
-                                            type="button"
-                                            data-time={time}
-                                            onClick={() => { setSelectedTime(time); setTimeFilter(type); }}
-                                            className={`flex-shrink-0 w-28 py-5 rounded-2xl border-2 text-sm font-black transition-all ${selectedTime === time
-                                                ? 'bg-gold-400 border-gold-400 text-white shadow-2xl scale-110'
-                                                : 'bg-white border-gray-100 text-gray-500 hover:border-gold-300'
-                                                }`}
-                                        >
-                                            {time}
-                                        </button>
-                                    ))}
+                                    {allTimeSlots.map(({ time, type }) => {
+                                        const isAvailable = availableSlots.includes(time);
+                                        const isSelected = selectedTime === time;
+
+                                        return (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                disabled={!isAvailable}
+                                                data-time={time}
+                                                onClick={() => { setSelectedTime(time); setTimeFilter(type); }}
+                                                className={`flex-shrink-0 w-28 py-5 rounded-2xl border-2 text-sm font-black transition-all ${isSelected
+                                                    ? 'bg-gold-400 border-gold-400 text-white shadow-2xl scale-110'
+                                                    : isAvailable
+                                                        ? 'bg-white border-gray-100 text-gray-500 hover:border-gold-300'
+                                                        : 'bg-gray-50 border-transparent text-gray-200 cursor-not-allowed opacity-50'
+                                                    }`}
+                                            >
+                                                {time}
+                                            </button>
+                                        )
+                                    })}
                                 </div>
                                 <button type="button" onClick={() => scroll(timeScrollRef, 'right')} className="p-2 hover:bg-gray-50 rounded-full"><ChevronRight /></button>
                             </div>
@@ -639,11 +672,26 @@ export default function BookingModal({ isOpen, onClose, service, servicesPool, s
                         <section className="space-y-6">
                             <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-600">HORA</h3>
                             <div className="grid grid-cols-3 gap-3 p-4 -m-4 overflow-visible">
-                                {allTimeSlots.map(({ time }) => (
-                                    <button key={time} type="button" onClick={() => setSelectedTime(time)} className={`py-4 rounded-2xl border text-xs font-black transition-all ${selectedTime === time ? 'bg-gold-500 border-gold-500 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400'}`}>
-                                        {time}
-                                    </button>
-                                ))}
+                                {allTimeSlots.map(({ time }) => {
+                                    const isAvailable = availableSlots.includes(time);
+                                    const isSelected = selectedTime === time;
+                                    return (
+                                        <button
+                                            key={time}
+                                            type="button"
+                                            disabled={!isAvailable}
+                                            onClick={() => setSelectedTime(time)}
+                                            className={`py-4 rounded-2xl border text-xs font-black transition-all ${isSelected
+                                                ? 'bg-gold-500 border-gold-500 text-white shadow-lg'
+                                                : isAvailable
+                                                    ? 'bg-white border-gray-100 text-gray-400'
+                                                    : 'bg-gray-50 border-transparent text-gray-200 opacity-50 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            {time}
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </section>
 

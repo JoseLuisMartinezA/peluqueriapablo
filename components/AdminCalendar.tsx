@@ -19,7 +19,9 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Maxim
 import CancelButton from './CancelButton'
 import PrivacyGuard from './admin/PrivacyGuard'
 
-export default function AdminCalendar({ initialAppointments }: { initialAppointments: any[] }) {
+export default function AdminCalendar({ initialAppointments, staff }: { initialAppointments: any[], staff: any[] }) {
+    const [selectedStaffId, setSelectedStaffId] = useState<string>('all')
+
     const [currentDate, setCurrentDate] = useState(new Date())
     const [selectedDate, setSelectedDate] = useState(new Date())
     const [view, setView] = useState<'day' | 'month'>('day')
@@ -35,7 +37,11 @@ export default function AdminCalendar({ initialAppointments }: { initialAppointm
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd })
 
     const getAppointmentsForDate = (date: Date) => {
-        return initialAppointments.filter(apt => isSameDay(new Date(apt.start_time), date))
+        return initialAppointments.filter(apt => {
+            const dateMatch = isSameDay(new Date(apt.start_time), date);
+            const staffMatch = selectedStaffId === 'all' || Number(apt.staff_id) === Number(selectedStaffId);
+            return dateMatch && staffMatch;
+        })
     }
 
     const selectedAppointments = getAppointmentsForDate(selectedDate)
@@ -44,14 +50,31 @@ export default function AdminCalendar({ initialAppointments }: { initialAppointm
         <div className="space-y-6">
             {/* Calendar Controls */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-xl border border-gray-200">
-                <div className="flex items-center gap-6">
-                    <button
-                        onClick={() => setView(view === 'day' ? 'month' : 'day')}
-                        className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors uppercase tracking-wider text-[10px] font-bold border border-gray-100 px-3 py-1.5 rounded-lg bg-gray-50"
-                    >
-                        {view === 'day' ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
-                        <span>Ver {view === 'day' ? 'Mes' : 'Semana'}</span>
-                    </button>
+                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full md:w-auto">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setView(view === 'day' ? 'month' : 'day')}
+                            className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors uppercase tracking-wider text-[10px] font-bold border border-gray-100 px-3 py-1.5 rounded-lg bg-gray-50 flex-shrink-0"
+                        >
+                            {view === 'day' ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                            <span>Ver {view === 'day' ? 'Mes' : 'Semana'}</span>
+                        </button>
+
+                        <div className="relative">
+                            <select
+                                value={selectedStaffId}
+                                onChange={(e) => setSelectedStaffId(e.target.value)}
+                                className="pl-3 pr-8 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-black/5 transition-all cursor-pointer appearance-none uppercase tracking-wider"
+                            >
+                                <option value="all">TODOS</option>
+                                {staff.filter(s => s.name !== 'Cualquiera').map(s => (
+                                    <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
+                                ))}
+                            </select>
+                            <User className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                        </div>
+                    </div>
+
                     <h2 className="text-xl font-bold text-gray-900 border-l-2 border-gray-100 pl-6 capitalize">
                         {format(currentDate, 'MMMM yyyy', { locale: es })}
                     </h2>
