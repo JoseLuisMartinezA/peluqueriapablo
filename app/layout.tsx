@@ -17,11 +17,22 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: '#000000',
 }
 
 export const metadata: Metadata = {
   title: "Barbershop | Estilo & Tradición",
   description: "Corte de pelo y barba con estilo clásico y técnicas modernas.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Barbershop",
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/favicon.ico', // Placeholder until real icons are provided
+  }
 };
 
 
@@ -36,6 +47,17 @@ export default function RootLayout({
         className={`${inter.className} ${playfair.variable} antialiased selection:bg-gold-400 selection:text-black font-sans`}
       >
         {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
