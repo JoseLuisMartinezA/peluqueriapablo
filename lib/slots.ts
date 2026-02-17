@@ -28,10 +28,9 @@ export async function getAvailableSlots(dateStr: string, staffId?: string | numb
     // - OR it is 'pending' AND was created less than 10 minutes ago
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-    // We use a range check for start_time to be exactly on the requested day in local time
-    // This handles timezone offsets correctly when converting to UTC
-    const dayStartISO = startOfDay(date).toISOString();
-    const dayEndISO = endOfDay(date).toISOString();
+    // Use wall-clock time strings (NO 'Z') for start_time range to prevent TZ shifts
+    const dayStartISO = format(startOfDay(date), "yyyy-MM-dd'T'HH:mm:ss");
+    const dayEndISO = format(endOfDay(date), "yyyy-MM-dd'T'HH:mm:ss");
 
     const tursoResult = await db.execute({
         sql: `

@@ -7,7 +7,7 @@ import { sendVerificationEmail } from '@/lib/email'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { sendBookingConfirmationEmail } from '@/lib/email'
-import { parse, setHours, setMinutes, setSeconds, setMilliseconds, startOfDay, addMinutes } from 'date-fns'
+import { parse, setHours, setMinutes, setSeconds, setMilliseconds, startOfDay, addMinutes, format } from 'date-fns'
 import { deleteEvent } from '@/lib/google'
 import { revalidatePath } from 'next/cache'
 
@@ -174,7 +174,12 @@ export async function bookAppointment(formData: FormData): Promise<ActionState> 
                         AND end_time > ? 
                         AND (status = 'confirmed' OR (status = 'pending' AND created_at > ?))
                     `,
-                    args: [sId, endTime.toISOString(), startTime.toISOString(), tenMinutesAgo]
+                    args: [
+                        sId,
+                        format(endTime, "yyyy-MM-dd'T'HH:mm:ss"),
+                        format(startTime, "yyyy-MM-dd'T'HH:mm:ss"),
+                        tenMinutesAgo
+                    ]
                 });
                 if (conflict.rows.length === 0) {
                     assignedStaffId = sId;
@@ -197,7 +202,12 @@ export async function bookAppointment(formData: FormData): Promise<ActionState> 
                     AND end_time > ? 
                     AND (status = 'confirmed' OR (status = 'pending' AND created_at > ?))
                 `,
-                args: [staffId, endTime.toISOString(), startTime.toISOString(), tenMinutesAgo]
+                args: [
+                    staffId,
+                    format(endTime, "yyyy-MM-dd'T'HH:mm:ss"),
+                    format(startTime, "yyyy-MM-dd'T'HH:mm:ss"),
+                    tenMinutesAgo
+                ]
             });
             if (conflict.rows.length > 0) {
                 return { success: false, error: 'Este profesional ya tiene una cita reservada a esta hora.', message: null };
@@ -209,7 +219,18 @@ export async function bookAppointment(formData: FormData): Promise<ActionState> 
 
         await db.execute({
             sql: 'INSERT INTO appointments (customer_name, customer_email, staff_id, start_time, end_time, status, services, notes, confirmation_token, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            args: [customerName, customerEmail, staffId, startTime.toISOString(), endTime.toISOString(), 'pending', services, notes, confirmationToken, now]
+            args: [
+                customerName,
+                customerEmail,
+                staffId,
+                format(startTime, "yyyy-MM-dd'T'HH:mm:ss"),
+                format(endTime, "yyyy-MM-dd'T'HH:mm:ss"),
+                'pending',
+                services,
+                notes,
+                confirmationToken,
+                now
+            ]
         });
 
         const emailResult = await sendBookingConfirmationEmail(customerEmail, {
