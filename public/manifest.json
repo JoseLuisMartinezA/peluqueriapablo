@@ -1,8 +1,8 @@
 {
-    "name": "Barbershop | Estilo & Tradición",
-    "short_name": "Barbershop",
-    "description": "Corte de pelo y barba con estilo clásico y técnicas modernas.",
-    "start_url": "/",
+    "name": "Barbershop | Gestión",
+    "short_name": "Gestión",
+    "description": "Panel de administración y gestión de citas.",
+    "start_url": "/admin",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#000000",
